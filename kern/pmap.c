@@ -371,7 +371,20 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	if (!(pgdir[PDX(va)] & PTE_P)) {
+		// The page directory entry is not present yet.
+		if (!create) {
+			// No creation
+			return NULL;
+		}
+		else {
+			// Create a new page table page.
+			struct PageInfo *pi = page_alloc(ALLOC_ZERO);
+			pi->pp_ref++;
+			pgdir[PDX(va)] = PTE_ADDR(page2pa(pi)) | PTE_P | PTE_W;
+		}
+	}
+	return (pte_t *)PTE_ADDR(pgdir[PDX(va)]);
 }
 
 //
@@ -389,6 +402,14 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	for (uintptr_t _va = va; _va < va + size; _va += PGSIZE) {
+		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
+		if (!(*pte & PTE_P)) {
+			// Page not present
+			struct PageInfo *pi = page_alloc(0);
+			*pte = page2pa(pi) | perm | PTE_P;
+		}
+	}
 }
 
 //
@@ -438,7 +459,7 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+
 }
 
 //
