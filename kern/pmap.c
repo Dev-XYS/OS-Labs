@@ -104,7 +104,7 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 	void *addr = nextfree;
 	n = ROUNDUP(n, PGSIZE);
-	if (-(size_t)nextfree <= n) {
+	if (-(uintptr_t)nextfree <= n) {
 		panic("boot_alloc: Not enough space\n");
 	}
 	else {
@@ -112,7 +112,7 @@ boot_alloc(uint32_t n)
 		// Only 4MB available
 		// I didn't find a constant specifying this,
 		// so 0x400000 must be hardcoded.
-		if ((size_t)nextfree > KERNBASE + 0x400000) {
+		if ((uintptr_t)nextfree > KERNBASE + 0x400000) {
 			panic("boot_alloc: Not enough space\n");
 		}
 	}
@@ -270,14 +270,20 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+
 	size_t i;
+	void *used_high = boot_alloc(0);
+
 	for (i = 0; i < npages; i++) {
 		bool is_free = true;
-		uint32_t byte = i * PGSIZE;
+		uintptr_t byte = i * PGSIZE;
 
-		if (i == 0) is_free = false;
-		else if (IOPHYSMEM <= byte && byte < EXTPHYSMEM) is_free = false;
-		else if (EXTPHYSMEM <= byte && byte < EXTPHYSMEM + ((uint32_t)boot_alloc(0) - KERNBASE)) is_free = false;
+		if (i == 0)
+			is_free = false;
+		else if (IOPHYSMEM <= byte && byte < EXTPHYSMEM)
+			is_free = false;
+		else if (EXTPHYSMEM <= byte && byte < EXTPHYSMEM + PADDR(used_high))
+			is_free = false;
 
 		// Not sure whether the ref count should be 0,
 		// but I guess it should be.
@@ -392,7 +398,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			pgdir[PDX(va)] = PTE_ADDR(page2pa(pi)) | PTE_P | PTE_W | PTE_U;
 		}
 	}
-	return KADDR((physaddr_t)((pte_t *)PTE_ADDR(pgdir[PDX(va)]) + PTX(va)));
+
+	return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
 }
 
 //
