@@ -188,7 +188,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, sizeof(struct PageInfo) * npages, PADDR(pages), PTE_U | PTE_P);
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -419,7 +419,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	// Fill this function in
 
 	// For each page in the range
-	for (size_t offset = 0; offset < size; offset += PGSIZE) {
+	for (uint32_t offset = 0; offset < size; offset += PGSIZE) {
 		pte_t *pte = pgdir_walk(pgdir, (void *)(va + offset), true);
 		*pte = (pa + offset) | perm | PTE_P;
 	}
@@ -454,6 +454,7 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+
 	pte_t *pte = pgdir_walk(pgdir, va, true);
 
 	if (pte == NULL) {
@@ -464,14 +465,16 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (*pte & PTE_P) {
 		// `va` already mapped
 		if (PTE_ADDR(*pte) == page2pa(pp)) {
-			// The page is going to be unmapped, and then remapped.
-			// Decrement the ref counter (because it will be incremented after)
-			pp->pp_ref = 0;
+			// The page should be unmapped, but then remapped.
+			// Decrease the ref counter (it will be increased soon after)
+			pp->pp_ref--;
 		}
 		else {
 			page_remove(pgdir, va);
-			tlb_invalidate(pgdir, va);
 		}
+
+		// In both cases, invalidate the TLB.
+		tlb_invalidate(pgdir, va);
 	}
 
 	*pte = page2pa(pp) | perm | PTE_P;
@@ -495,12 +498,15 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	pte_t *pte = pgdir_walk(pgdir, va, 0);
+	pte_t *pte = pgdir_walk(pgdir, va, false);
 	if (pte == NULL) {
 		return NULL;
 	}
 	if (pte_store) {
 		*pte_store = pte;
+	}
+	if ((*pte & PTE_P) == 0) {
+		return NULL;
 	}
 	return pa2page(PTE_ADDR(*pte));
 }
@@ -524,11 +530,12 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+
 	pte_t *pte;
 	struct PageInfo *pi = page_lookup(pgdir, va, &pte);
 
 	if (pi == 0) {
-		// No physical page at `va`
+		// No physical page mapped at `va`
 		return;
 	}
 
