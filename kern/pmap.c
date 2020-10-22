@@ -211,7 +211,24 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W | PTE_P);
+
+	// Challenge 1: Use superpages for the KERNBASE mapping.
+	uint32_t edx;
+	// Query CPU for page size extension support
+	cpuid(1, NULL, NULL, NULL, &edx);
+	if (edx & 0x8) {
+		// The CPU supports PSE.
+		uint32_t cr4 = rcr4();
+		cr4 |= CR4_PSE;
+		lcr4(cr4);
+		for (uintptr_t addr = KERNBASE; addr; addr += 0x400000) {
+			kern_pgdir[PDX(addr)] = PADDR((void *)addr) | PTE_PS | PTE_W | PTE_P;
+		}
+	}
+	else {
+		// The CPU does not support PSE.
+		boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W | PTE_P);
+	}
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -768,6 +785,11 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
 		return ~0;
+	if (*pgdir & PTE_PS) {
+		// 4MB page
+		// Necessary for Challenge 1
+		return (*pgdir & 0xffc00000) + (va & 0x3fffff);
+	}
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
