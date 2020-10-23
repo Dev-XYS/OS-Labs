@@ -120,6 +120,30 @@ boot_alloc(uint32_t n)
 	return nextfree;
 }
 
+// Check if the CPU supports CPUID instruction.
+bool
+__cpu_supports_cpuid(void) {
+	uint32_t eflags = read_eflags();
+	write_eflags(eflags ^ FL_ID);
+	return read_eflags() ^ eflags ? true : false;
+}
+
+// Check if the CPU supports page size extension (PSE).
+bool
+__cpu_supports_pse(void) {
+	if (!__cpu_supports_cpuid()) {
+		return false;
+	}
+
+	uint32_t edx;
+
+	// Query CPU for page size extension support
+	cpuid(1, NULL, NULL, NULL, &edx);
+
+	// The fourth bit indicates if PSE is supported.
+	return edx & 0x8 ? true : false;
+}
+
 // Set up a two-level page table:
 //    kern_pgdir is its linear (virtual) address of the root
 //
@@ -213,11 +237,10 @@ mem_init(void)
 	// Your code goes here:
 
 	// Challenge 1: Use superpages for the KERNBASE mapping.
-	uint32_t edx;
-	// Query CPU for page size extension support
-	cpuid(1, NULL, NULL, NULL, &edx);
-	if (edx & 0x8) {
+	if (__cpu_supports_pse()) {
+		cprintf("! CPU supports PSE\n");
 		// The CPU supports PSE.
+		// Set the PSE bit
 		uint32_t cr4 = rcr4();
 		cr4 |= CR4_PSE;
 		lcr4(cr4);
