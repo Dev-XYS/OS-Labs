@@ -256,7 +256,7 @@ mem_init(void)
 		uint32_t cr4 = rcr4();
 		cr4 |= CR4_PSE;
 		lcr4(cr4);
-		for (uintptr_t addr = KERNBASE; addr; addr += 0x400000) {
+		for (uintptr_t addr = KERNBASE; addr; addr += SPGSIZE) {
 			kern_pgdir[PDX(addr)] = PADDR((void *)addr) | PTE_PS | PTE_W | PTE_P;
 		}
 	}
