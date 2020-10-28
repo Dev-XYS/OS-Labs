@@ -238,7 +238,6 @@ mem_init(void)
 
 	// Challenge 1: Use superpages for the KERNBASE mapping.
 	if (__cpu_supports_pse()) {
-		cprintf("! CPU supports PSE\n");
 		// The CPU supports PSE.
 		// Set the PSE bit
 		uint32_t cr4 = rcr4();
