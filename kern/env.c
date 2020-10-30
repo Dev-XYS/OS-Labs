@@ -379,7 +379,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	// program hasn't been started yet. The other registers don't
 	// matter, because the program will not use them without first
 	// assigning to them.
-	e->env_tf.tf_cs = 8;
 	e->env_tf.tf_eip = elf->e_entry;
 
 	// Now map one page for the program's initial stack
@@ -411,7 +410,6 @@ env_create(uint8_t *binary, enum EnvType type)
 	e->env_type = type;
 
 	load_icode(e, binary);
-	cprintf("create ends\n");
 }
 
 //

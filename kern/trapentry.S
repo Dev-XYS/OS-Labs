@@ -47,9 +47,64 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 
-
+TRAPHANDLER_NOEC(handler0, 0)
+TRAPHANDLER(handler1, 1)
+TRAPHANDLER(handler2, 2)
+TRAPHANDLER(handler3, 3)
+TRAPHANDLER(handler4, 4)
+TRAPHANDLER(handler5, 5)
+TRAPHANDLER(handler6, 6)
+TRAPHANDLER(handler7, 7)
+TRAPHANDLER(handler8, 8)
+TRAPHANDLER(handler9, 9)
+TRAPHANDLER(handler10, 10)
+TRAPHANDLER(handler11, 11)
+TRAPHANDLER(handler12, 12)
+TRAPHANDLER(handler13, 13)
+TRAPHANDLER(handler14, 14)
+TRAPHANDLER(handler15, 15)
+TRAPHANDLER(handler16, 16)
+TRAPHANDLER(handler17, 17)
+TRAPHANDLER(handler18, 18)
+TRAPHANDLER(handler19, 19)
+TRAPHANDLER(handler20, 20)
+TRAPHANDLER(handler21, 21)
+TRAPHANDLER(handler22, 22)
+TRAPHANDLER(handler23, 23)
+TRAPHANDLER(handler24, 24)
+TRAPHANDLER(handler25, 25)
+TRAPHANDLER(handler26, 26)
+TRAPHANDLER(handler27, 27)
+TRAPHANDLER(handler28, 28)
+TRAPHANDLER(handler29, 29)
+TRAPHANDLER(handler30, 30)
+TRAPHANDLER(handler31, 31)
 
 /*
  * Lab 3: Your code here for _alltraps
  */
 
+	.globl _alltraps		/* define global symbol for 'name' */
+	.type _alltraps, @function;	/* symbol type is function */
+	.align 2;			/* align function definition */
+_alltraps:				/* function starts here */
+	pushw $0
+	pushw 26(%esp)
+	pushl 24(%esp)
+	pushf
+	pushw $0
+	pushw 26(%esp) // cs
+	pushl 24(%esp) // eip
+	pushl 24(%esp) // error code
+	pushl 24(%esp) // trap no
+	pushw $0
+	pushw %ds
+	pushw $0
+	pushw %es
+	pusha
+	mov $GD_KD, %ax
+	mov %ax, %ds
+	mov $GD_KD, %ax
+	mov %ax, %ds
+	pushl %esp
+	call trap
