@@ -89,15 +89,6 @@ TRAPHANDLER(handler31, 31)
 	.align 2;			/* align function definition */
 _alltraps:				/* function starts here */
 	pushw $0
-	pushw 26(%esp)
-	pushl 24(%esp)
-	pushf
-	pushw $0
-	pushw 26(%esp) // cs
-	pushl 24(%esp) // eip
-	pushl 24(%esp) // error code
-	pushl 24(%esp) // trap no
-	pushw $0
 	pushw %ds
 	pushw $0
 	pushw %es
