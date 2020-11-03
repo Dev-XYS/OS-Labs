@@ -73,6 +73,8 @@ trap_init(void)
 	SETGATE(idt[13], true, GD_KT, handler13, 0);
 	void handler14(void);
 	SETGATE(idt[14], true, GD_KT, handler14, 0);
+	void handler48(void);
+	SETGATE(idt[48], true, GD_KT, handler48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
