@@ -67,6 +67,8 @@ trap_init(void)
 	// LAB 3: Your code here.
 	void handler0(void);
 	SETGATE(idt[0], true, GD_KT, handler0, 0);
+	void handler3(void);
+	SETGATE(idt[3], true, GD_KT, handler3, 3);
 	void handler13(void);
 	SETGATE(idt[13], true, GD_KT, handler13, 0);
 	void handler14(void);
@@ -153,6 +155,9 @@ trap_dispatch(struct Trapframe *tf)
 	if (tf->tf_trapno == T_PGFLT) {
 		page_fault_handler(tf);
 		return;
+	}
+	else if (tf->tf_trapno == T_BRKPT) {
+		monitor(tf);
 	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
