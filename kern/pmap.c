@@ -640,6 +640,23 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
 
+	// Check for ULIM (I wonder why this check is necessary.)
+	if (va + len >= (void *)ULIM) {
+		// This isn't accurate, but it doesn't matter probably.
+		user_mem_check_addr = (uintptr_t)(va >= (void *)ULIM ? va : (void *)ULIM);
+
+		return -E_FAULT;
+	}
+
+	for (void *addr = ROUNDDOWN((void *)va, PGSIZE); addr < va + len; addr += PGSIZE) {
+		pte_t *pte;
+		page_lookup(env->env_pgdir, addr, &pte);
+		if ((*pte & (perm | PTE_P)) != (perm | PTE_P)) {
+			user_mem_check_addr = (uintptr_t)(addr < va ? va : addr);
+			return -E_FAULT;
+		}
+	}
+
 	return 0;
 }
 
