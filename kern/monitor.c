@@ -82,12 +82,23 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 int
 mon_continue(int argc, char **argv, struct Trapframe *tf)
 {
-	env_run(curenv);
+	if (tf) {
+		env_pop_tf(tf);
+	}
+
+	cprintf("No running environment\n");
+	return 0;
 }
 
 int
 mon_si(int argc, char **argv, struct Trapframe *tf) {
-	panic("not implemented");
+	if (tf) {
+		tf->tf_eflags |= FL_TF;
+		env_pop_tf(tf);
+	}
+
+	cprintf("No running environment\n");
+	return 0;
 }
 
 

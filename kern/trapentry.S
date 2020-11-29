@@ -48,7 +48,7 @@
  */
 
 TRAPHANDLER_NOEC(handler0, 0)
-TRAPHANDLER(handler1, 1)
+TRAPHANDLER_NOEC(handler1, 1)
 TRAPHANDLER(handler2, 2)
 TRAPHANDLER_NOEC(handler3, 3)
 TRAPHANDLER(handler4, 4)
