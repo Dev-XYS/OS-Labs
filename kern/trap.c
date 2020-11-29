@@ -65,20 +65,20 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	void handler0(void);
-	SETGATE(idt[0], false, GD_KT, handler0, 0);
-	void handler1(void);
-	SETGATE(idt[1], false, GD_KT, handler1, 1);
-	void handler3(void);
-	SETGATE(idt[3], false, GD_KT, handler3, 3);
-	void handler13(void);
-	SETGATE(idt[13], false, GD_KT, handler13, 0);
-	void handler14(void);
-	SETGATE(idt[14], false, GD_KT, handler14, 0);
-	void handler48(void);
-	SETGATE(idt[48], false, GD_KT, handler48, 3);
 
-	// Per-CPU setup 
+	// `handlers` is defined in trapentry.S and filled by macros
+	extern uint32_t handlers[];
+
+	uint8_t dpl[256] = { 0 };
+	dpl[3] = 3;
+	dpl[48] = 3;
+
+	for (int i = 0; i < 32; i++) {
+		SETGATE(idt[i], false, GD_KT, handlers[i], dpl[i]);
+	}
+	SETGATE(idt[48], false, GD_KT, handlers[48], dpl[48]);
+
+	// Per-CPU setup
 	trap_init_percpu();
 }
 
@@ -156,6 +156,7 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+
 	if (tf->tf_trapno == T_PGFLT) {
 		page_fault_handler(tf);
 		return;
@@ -247,4 +248,3 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
-
