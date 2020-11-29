@@ -109,5 +109,4 @@ _alltraps:				/* function starts here */
 	mov $GD_KD, %ax
 	mov %ax, %es
 	pushl %esp
-	mov $0, %ebp			/* This is essential for the backtrace function */
 	call trap
