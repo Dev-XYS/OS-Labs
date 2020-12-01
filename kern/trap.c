@@ -73,7 +73,19 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
-	// Per-CPU setup 
+	// `handlers` is defined in trapentry.S and filled by macros
+	extern uint32_t handlers[];
+
+	uint8_t dpl[256] = { 0 };
+	dpl[3] = 3;
+	dpl[48] = 3;
+
+	for (int i = 0; i < 32; i++) {
+		SETGATE(idt[i], false, GD_KT, handlers[i], dpl[i]);
+	}
+	SETGATE(idt[48], false, GD_KT, handlers[48], dpl[48]);
+
+	// Per-CPU setup
 	trap_init_percpu();
 }
 
@@ -176,6 +188,22 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	if (tf->tf_trapno == T_PGFLT) {
+		page_fault_handler(tf);
+		return;
+	}
+	else if (tf->tf_trapno == T_DEBUG) {
+		tf->tf_eflags &= ~FL_TF;
+		monitor(tf);
+	}
+	else if (tf->tf_trapno == T_BRKPT) {
+		monitor(tf);
+	}
+	else if (tf->tf_trapno == T_SYSCALL) {
+		uint32_t eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+		curenv->env_tf.tf_regs.reg_eax = eax;
+		return;
+	}
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -271,6 +299,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if ((tf->tf_cs & 3) == 0) {
+		// Trap from kernel mode
+		panic("page_fault_handler: page fault in kernel mode, va = 0x%8x\n", fault_va);
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
@@ -312,4 +344,3 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
-

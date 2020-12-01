@@ -161,12 +161,82 @@ cga_init(void)
 
 
 
+static unsigned
+__get_color_attr(unsigned val) {
+	if (val == 1) {
+		return 0x08;
+	}
+	if (val == 5) {
+		return 0x80;
+	}
+	unsigned attr = 0;
+	switch (val % 10) {
+	case 0:
+		attr = 0;
+		break;
+	case 1:
+		attr = 4;
+		break;
+	case 2:
+		attr = 2;
+		break;
+	case 3:
+		attr = 6;
+		break;
+	case 4:
+		attr = 1;
+		break;
+	case 5:
+		attr = 5;
+		break;
+	case 6:
+		attr = 3;
+		break;
+	case 7:
+		attr = 7;
+		break;
+	}
+	if (val >= 40) {
+		attr <<= 4;
+	}
+	return attr;
+}
+
 static void
 cga_putc(int c)
 {
+	// static data for color print
+	static int escaped = 0;
+	static unsigned attribute = 0x0700;
+	static unsigned attr_val = 0;
+
+	// process ANSI escape sequence
+	if (escaped) {
+		if (c == '[') {
+			// do nothing
+		}
+		else if ('0' <= c && c <= '9') {
+			attr_val = attr_val * 10 + c - '0';
+		}
+		else {
+			if (attr_val == 0) {
+				attribute = 0x0700;
+			}
+			else {
+				unsigned attr = __get_color_attr(attr_val);
+				attribute |= attr << 8;
+				attr_val = 0;
+			}
+			if (c == 'm') {
+				escaped = 0;
+			}
+		}
+		return;
+	}
+
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
-		c |= 0x0700;
+		c |= attribute;
 
 	switch (c & 0xff) {
 	case '\b':
@@ -187,6 +257,10 @@ cga_putc(int c)
 		cons_putc(' ');
 		cons_putc(' ');
 		cons_putc(' ');
+		break;
+	case '\e':
+		escaped = 1;
+		attribute &= 0x8800;
 		break;
 	default:
 		crt_buf[crt_pos++] = c;		/* write the character */
