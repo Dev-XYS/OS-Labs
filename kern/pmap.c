@@ -22,7 +22,7 @@ static struct PageInfo *page_free_list;	// Free list of physical pages
 
 // Set by mem_init(), stores if the CPU supports PSE.
 // Set by BSP, used by APs.
-bool __support_pse;
+bool __supports_pse;
 
 
 // --------------------------------------------------------------
@@ -260,7 +260,7 @@ mem_init(void)
 
 	// Challenge 1: Use superpages for the KERNBASE mapping.
 	__supports_pse = __cpu_supports_pse();
-	if (__support_pse) {
+	if (__supports_pse) {
 		// The CPU supports PSE.
 		// Set the PSE bit
 		uint32_t cr4 = rcr4();
