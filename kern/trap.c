@@ -301,7 +301,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	if ((tf->tf_cs & 3) == 0) {
 		// Trap from kernel mode
-		panic("page_fault_handler: page fault in kernel mode, va = 0x%8x\n", fault_va);
+		panic("page_fault_handler: page fault in kernel mode, va = 0x%08x\n", fault_va);
 	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
