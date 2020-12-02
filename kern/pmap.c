@@ -20,6 +20,10 @@ pde_t *kern_pgdir;		// Kernel's initial page directory
 struct PageInfo *pages;		// Physical page state array
 static struct PageInfo *page_free_list;	// Free list of physical pages
 
+// Set by mem_init(), stores if the CPU supports PSE.
+// Set by BSP, used by APs.
+bool __support_pse;
+
 
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
@@ -124,7 +128,7 @@ boot_alloc(uint32_t n)
 }
 
 // Check if the CPU supports CPUID instruction.
-bool
+static bool
 __cpu_supports_cpuid(void) {
 	uint32_t eflags = read_eflags();
 	write_eflags(eflags ^ FL_ID);
@@ -132,7 +136,7 @@ __cpu_supports_cpuid(void) {
 }
 
 // Check if the CPU supports page size extension (PSE).
-bool
+static bool
 __cpu_supports_pse(void) {
 	if (!__cpu_supports_cpuid()) {
 		return false;
@@ -255,7 +259,8 @@ mem_init(void)
 	// Your code goes here:
 
 	// Challenge 1: Use superpages for the KERNBASE mapping.
-	if (__cpu_supports_pse()) {
+	__supports_pse = __cpu_supports_pse();
+	if (__support_pse) {
 		// The CPU supports PSE.
 		// Set the PSE bit
 		uint32_t cr4 = rcr4();
@@ -322,7 +327,7 @@ mem_init_mp(void)
 	// LAB 4: Your code here:
 
 	for (int i = 0; i < NCPU; i++) {
-		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W | PTE_P);
 	}
 }
 
@@ -689,7 +694,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Your code here:
 
 	size = ROUNDUP(size, PGSIZE);
-	boot_map_region(kern_pgdir, base, size, pa, PTE_W | PTE_PCD | PTE_PWT);
+	boot_map_region(kern_pgdir, base, size, pa, PTE_W | PTE_P | PTE_PCD | PTE_PWT);
 	void *_base = (void *)base;
 	base += size;
 	return _base;
