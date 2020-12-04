@@ -735,7 +735,13 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 
 	for (void *addr = ROUNDDOWN((void *)va, PGSIZE); addr < va + len; addr += PGSIZE) {
 		pte_t *pte;
-		page_lookup(env->env_pgdir, addr, &pte);
+
+		if (page_lookup(env->env_pgdir, addr, &pte) == NULL) {
+			// No page is mapped here.
+			user_mem_check_addr = (uintptr_t)(addr < va ? va : addr);
+			return -E_FAULT;
+		}
+
 		if ((*pte & (perm | PTE_P)) != (perm | PTE_P)) {
 			user_mem_check_addr = (uintptr_t)(addr < va ? va : addr);
 			return -E_FAULT;

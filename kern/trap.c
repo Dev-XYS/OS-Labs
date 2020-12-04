@@ -302,7 +302,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	if ((tf->tf_cs & 3) == 0) {
 		// Trap from kernel mode
-		panic("page_fault_handler: page fault in kernel mode, va = 0x%08x\n", fault_va);
+		panic("page_fault_handler: page fault in kernel mode, va = 0x%08x, ip = %08x\n", fault_va, tf->tf_eip);
 	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
@@ -358,20 +358,26 @@ page_fault_handler(struct Trapframe *tf)
 			// setup the trap frame
 			*((uint32_t *)tf->tf_esp - 1) = 0;
 			*((struct UTrapframe *)((uint32_t *)tf->tf_esp - 1) - 1) = utf;
+
+			// setup the stack pointer
+			tf->tf_esp -= 4 + sizeof(struct UTrapframe);
 		}
 		else {
 			// This is non-recursive.
 
 			// no need to check overflow
+			// ... but need to make sure the user exception stack exists :-(
+			user_mem_assert(curenv, (void *)UXSTACKTOP - sizeof(struct UTrapframe), sizeof(struct UTrapframe), 0);
 
 			// setup the trap frame
-			*((uint32_t *)UXSTACKTOP - 1) = 0;
-			*((struct UTrapframe *)((uint32_t *)UXSTACKTOP - 1) - 1) = utf;
+			*((struct UTrapframe *)UXSTACKTOP - 1) = utf;
+
+			// setup the stack pointer
+			tf->tf_esp = UXSTACKTOP - sizeof(struct UTrapframe);
 		}
 
-		// set up the handler entry point and stack pointer
+		// set up the handler entry point
 		tf->tf_eip = (uint32_t)curenv->env_pgfault_upcall;
-		tf->tf_esp -= 4 + sizeof(struct UTrapframe);
 
 		// restart the env (execute the page fault handler)
 		env_run(curenv);
