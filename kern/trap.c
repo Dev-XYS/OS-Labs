@@ -369,6 +369,10 @@ page_fault_handler(struct Trapframe *tf)
 			*((struct UTrapframe *)((uint32_t *)UXSTACKTOP - 1) - 1) = utf;
 		}
 
+		// set up the handler entry point and stack pointer
+		tf->tf_eip = (uint32_t)curenv->env_pgfault_upcall;
+		tf->tf_esp -= 4 + sizeof(struct UTrapframe);
+
 		// restart the env (execute the page fault handler)
 		env_run(curenv);
 	}
