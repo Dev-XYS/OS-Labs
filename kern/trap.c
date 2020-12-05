@@ -83,6 +83,9 @@ trap_init(void)
 	for (int i = 0; i < 32; i++) {
 		SETGATE(idt[i], false, GD_KT, handlers[i], dpl[i]);
 	}
+	for (int i = IRQ_OFFSET; i < IRQ_OFFSET + 16; i++) {
+		SETGATE(idt[i], false, GD_KT, handlers[i], dpl[i]);
+	}
 	SETGATE(idt[48], false, GD_KT, handlers[48], dpl[48]);
 
 	// Per-CPU setup
