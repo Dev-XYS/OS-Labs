@@ -164,6 +164,35 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	return 0;
 }
 
+// Set one of the exception upcalls for 'envid'.
+static int
+sys_env_set_exception_upcall(envid_t envid, uint32_t intno, void *func)
+{
+	struct Env *e;
+	int r;
+
+	switch (intno) {
+	case T_DIVIDE:
+	case T_BOUND:
+	case T_ILLOP:
+	case T_STACK:
+	case T_GPFLT:
+	case T_FPERR:
+	case T_ALIGN:
+	case T_SIMDERR:
+		r = envid2env(envid, &e, true);
+		if (r < 0) {
+			return r;
+		}
+
+		e->env_exception_upcalls[intno] = func;
+
+		return 0;
+	default:
+		return -E_INVAL;
+	}
+}
+
 // Allocate a page of memory and map it at 'va' with permission
 // 'perm' in the address space of 'envid'.
 // The page's contents are set to 0.
@@ -484,6 +513,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_env_set_status(a1, a2);
 	case SYS_env_set_pgfault_upcall:
 		return sys_env_set_pgfault_upcall(a1, (void *)a2);
+	case SYS_env_set_exception_upcall:
+		return sys_env_set_exception_upcall(a1, a2, (void *)a3);
 	case SYS_page_alloc:
 		return sys_page_alloc(a1, (void *)a2, a3);
 	case SYS_page_map:

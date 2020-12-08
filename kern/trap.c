@@ -187,6 +187,52 @@ print_regs(struct PushRegs *regs)
 }
 
 static void
+__run_exception_upcall(struct Trapframe *tf, uint32_t fault_va, void *upcall)
+{
+	// prepare the UTrapframe
+	struct UTrapframe utf;
+	utf.utf_fault_va = fault_va;
+	utf.utf_err = tf->tf_err;
+	utf.utf_regs = tf->tf_regs;
+	utf.utf_eip = tf->tf_eip;
+	utf.utf_eflags = tf->tf_eflags;
+	utf.utf_esp = tf->tf_esp;
+
+	if (UXSTACKTOP - PGSIZE <= tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
+		// This is a recursive fault.
+
+		// make sure the user exception stack doesn't overflow
+		user_mem_assert(curenv, (void *)tf->tf_esp - 4 - sizeof(struct UTrapframe), 4 + sizeof(struct UTrapframe), 0);
+
+		// setup the trap frame
+		*((uint32_t *)tf->tf_esp - 1) = 0;
+		*((struct UTrapframe *)((uint32_t *)tf->tf_esp - 1) - 1) = utf;
+
+		// setup the stack pointer
+		tf->tf_esp -= 4 + sizeof(struct UTrapframe);
+	}
+	else {
+		// This is non-recursive.
+
+		// no need to check overflow
+		// ... but need to make sure the user exception stack exists :-(
+		user_mem_assert(curenv, (void *)UXSTACKTOP - sizeof(struct UTrapframe), sizeof(struct UTrapframe), 0);
+
+		// setup the trap frame
+		*((struct UTrapframe *)UXSTACKTOP - 1) = utf;
+
+		// setup the stack pointer
+		tf->tf_esp = UXSTACKTOP - sizeof(struct UTrapframe);
+	}
+
+	// set up the handler entry point
+	tf->tf_eip = (uint32_t)upcall;
+
+	// restart the env (execute the page fault handler)
+	env_run(curenv);
+}
+
+static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
@@ -223,6 +269,13 @@ trap_dispatch(struct Trapframe *tf)
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
 		lapic_eoi();
 		sched_yield();
+	}
+
+	// Handle user-defined exception upcalls.
+	if (0 <= tf->tf_trapno && tf->tf_trapno < 32) {
+		if (curenv->env_exception_upcalls[tf->tf_trapno]) {
+			__run_exception_upcall(tf, 0, curenv->env_exception_upcalls[tf->tf_trapno]);
+		}
 	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -347,47 +400,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 4: Your code here.
 
 	if (curenv->env_pgfault_upcall) {
-		// prepare the UTrapframe
-		struct UTrapframe utf;
-		utf.utf_fault_va = fault_va;
-		utf.utf_err = tf->tf_err;
-		utf.utf_regs = tf->tf_regs;
-		utf.utf_eip = tf->tf_eip;
-		utf.utf_eflags = tf->tf_eflags;
-		utf.utf_esp = tf->tf_esp;
-
-		if (UXSTACKTOP - PGSIZE <= tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
-			// This is a recursive fault.
-
-			// make sure the user exception stack doesn't overflow
-			user_mem_assert(curenv, (void *)tf->tf_esp - 4 - sizeof(struct UTrapframe), 4 + sizeof(struct UTrapframe), 0);
-
-			// setup the trap frame
-			*((uint32_t *)tf->tf_esp - 1) = 0;
-			*((struct UTrapframe *)((uint32_t *)tf->tf_esp - 1) - 1) = utf;
-
-			// setup the stack pointer
-			tf->tf_esp -= 4 + sizeof(struct UTrapframe);
-		}
-		else {
-			// This is non-recursive.
-
-			// no need to check overflow
-			// ... but need to make sure the user exception stack exists :-(
-			user_mem_assert(curenv, (void *)UXSTACKTOP - sizeof(struct UTrapframe), sizeof(struct UTrapframe), 0);
-
-			// setup the trap frame
-			*((struct UTrapframe *)UXSTACKTOP - 1) = utf;
-
-			// setup the stack pointer
-			tf->tf_esp = UXSTACKTOP - sizeof(struct UTrapframe);
-		}
-
-		// set up the handler entry point
-		tf->tf_eip = (uint32_t)curenv->env_pgfault_upcall;
-
-		// restart the env (execute the page fault handler)
-		env_run(curenv);
+		__run_exception_upcall(tf, fault_va, curenv->env_pgfault_upcall);
 	}
 
 	// Destroy the environment that caused the fault.
