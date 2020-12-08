@@ -154,7 +154,7 @@ fork(void)
 				for (int ptn = 0; ptn < NPTENTRIES; ptn++) {
 					int pn = pdn * NPTENTRIES + ptn;
 
-					// skip the user kernel stack page
+					// skip the user exception stack page
 					if (pn == PGNUM(UXSTACKTOP - PGSIZE)) continue;
 
 					if (uvpt[pn] & (PTE_U | PTE_P)) {
@@ -197,13 +197,73 @@ fork(void)
 
 		return 0;
 	}
-
 }
 
 // Challenge!
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	int r;
+
+	set_pgfault_handler(pgfault);
+
+	envid_t eid = sys_exofork();
+
+	if (eid < 0) {
+		return eid;
+	}
+
+	if (eid) {
+		// parent
+
+		// duplicate the page table
+		for (int pdn = 0; pdn < PDX(UTOP); pdn++) {
+			if (uvpd[pdn] & (PTE_U | PTE_P)) {
+				for (int ptn = 0; ptn < NPTENTRIES; ptn++) {
+					int pn = pdn * NPTENTRIES + ptn;
+					void *addr = (void *)(pn * PGSIZE);
+
+					// skip the user exception stack page
+					if (pn == PGNUM(UXSTACKTOP - PGSIZE)) continue;
+
+					// duplicate the regular user stack
+					else if (pn == PGNUM(USTACKTOP - PGSIZE)) {
+						duppage(eid, pn);
+					}
+
+					// share the page (duplicate the mapping)
+					else if (uvpt[pn] & (PTE_U | PTE_P)) {
+						sys_page_map(0, addr, eid, addr, uvpt[pn] & PTE_SYSCALL);
+					}
+				}
+			}
+		}
+
+		// allocate the user exception stack
+		r = sys_page_alloc(eid, (void *)UXSTACKTOP - PGSIZE, PTE_U | PTE_W | PTE_P);
+		if (r < 0) {
+			return r;
+		}
+
+		// set the page fault handler entrypoint for the child
+		// (_pgfault_handler copied (or shared), but `env_pgfault_upcall` is in the kernel)
+		extern void _pgfault_upcall(void);
+		r = sys_env_set_pgfault_upcall(eid, _pgfault_upcall);
+		if (r < 0) {
+			return r;
+		}
+
+		// mark the child as runnable
+		r = sys_env_set_status(eid, ENV_RUNNABLE);
+		if (r < 0) {
+			return r;
+		}
+
+		return eid;
+	}
+	else {
+		// child
+
+		return 0;
+	}
 }
