@@ -124,7 +124,7 @@ boot_alloc(uint32_t n)
 		}
 	}
 
-	return nextfree;
+	return addr;
 }
 
 // Check if the CPU supports CPUID instruction.
@@ -149,6 +149,22 @@ __cpu_supports_pse(void) {
 
 	// The fourth bit indicates if PSE is supported.
 	return edx & 0x8 ? true : false;
+}
+
+int
+__free_page_cnt(void) {
+	int fc = 0;
+	struct PageInfo *pi = page_free_list;
+	while (pi) {
+		fc++;
+		pi = pi->pp_link;
+	}
+	return fc;
+}
+
+void
+__show_free_page_cnt(void) {
+	cprintf("free physical pages: %d\n", __free_page_cnt());
 }
 
 // Set up a two-level page table:
@@ -423,6 +439,7 @@ page_alloc(int alloc_flags)
 		if (alloc_flags & ALLOC_ZERO) {
 			memset(page2kva(page), 0, PGSIZE);
 		}
+
 		return page;
 	}
 }
