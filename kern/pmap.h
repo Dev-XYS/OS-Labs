@@ -17,6 +17,8 @@ extern size_t npages;
 
 extern pde_t *kern_pgdir;
 
+extern bool __supports_pse;
+
 
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
@@ -67,6 +69,8 @@ void *	mmio_map_region(physaddr_t pa, size_t size);
 
 int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
+
+void __show_free_page_cnt(void);
 
 static inline physaddr_t
 page2pa(struct PageInfo *pp)

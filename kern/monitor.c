@@ -11,6 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -25,6 +26,9 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display the stack backtrace", mon_backtrace },
+	{ "continue", "Continue the execution interrupted by a breakpoint instruction", mon_continue },
+	{ "si", "Step one instruction exactly", mon_si },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -59,6 +63,41 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	cprintf("Stack backtrace:\n");
+	uint32_t ebp = read_ebp();
+	while (ebp) {
+		uint32_t *stack = (uint32_t *)ebp;
+		uint32_t prev_ebp = stack[0];
+		uint32_t eip = stack[1];
+		uint32_t *args = stack + 2;
+		cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n", ebp, eip, args[0], args[1], args[2], args[3], args[4]);
+		struct Eipdebuginfo info;
+		debuginfo_eip(eip, &info);
+		cprintf("         %s:%d: %.*s+%d\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, eip - info.eip_fn_addr);
+		ebp = prev_ebp;
+	}
+	return 0;
+}
+
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf) {
+		env_pop_tf(tf);
+	}
+
+	cprintf("No running environment\n");
+	return 0;
+}
+
+int
+mon_si(int argc, char **argv, struct Trapframe *tf) {
+	if (tf) {
+		tf->tf_eflags |= FL_TF;
+		env_pop_tf(tf);
+	}
+
+	cprintf("No running environment\n");
 	return 0;
 }
 
