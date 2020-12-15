@@ -86,7 +86,6 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 
-	bool t = !!(uvpt[pn] & PTE_COW);
 	void *addr = (void *)(pn * PGSIZE);
 
 	// Lessons learned the hard way: cannot use `thisenv->env_id` to get the
@@ -167,7 +166,7 @@ fork(void)
 					// skip the user exception stack page
 					if (pn == PGNUM(UXSTACKTOP - PGSIZE)) continue;
 
-					if (uvpt[pn] & (PTE_U | PTE_P)) {
+					if ((uvpt[pn] & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
 						int r = duppage(eid, pn);
 						if (r < 0) {
 							cprintf("duppage error : %e\n", r);

@@ -309,7 +309,7 @@ copy_shared_pages(envid_t child)
 				int pn = pdn * NPTENTRIES + ptn;
 				void *addr = (void *)(pn * PGSIZE);
 
-				if (uvpt[pn] & (PTE_SHARE | PTE_U | PTE_P)) {
+				if ((uvpt[pn] & (PTE_SHARE | PTE_U | PTE_P)) == (PTE_SHARE | PTE_U | PTE_P)) {
 					int r = sys_page_map(0, addr, child, addr, uvpt[pn] & PTE_SYSCALL);
 					if (r < 0) return r;
 				}
