@@ -111,6 +111,8 @@ again:
 			}
 			panic("| not implemented");
 			break;
+		case '&':       // Background jobs are processed in the parent process.
+			break;
 
 		case 0:		// String is complete
 			// Run the current command!
@@ -264,6 +266,14 @@ usage(void)
 	exit();
 }
 
+bool
+__is_bg_job(const char *const s) {
+	const char *t = s;
+	while (*t) t++;
+	while (t > s && *--t == ' ') ;
+	return *t == '&';
+}
+
 void
 umain(int argc, char **argv)
 {
@@ -323,7 +333,10 @@ umain(int argc, char **argv)
 		if (r == 0) {
 			runcmd(buf);
 			exit();
-		} else
-			wait(r);
+		} else {
+			if (!__is_bg_job(buf)) {
+				wait(r);
+			}
+		}
 	}
 }
