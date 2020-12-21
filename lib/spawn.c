@@ -282,6 +282,11 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 			if ((r = sys_page_alloc(child, (void*) (va + i), perm)) < 0)
 				return r;
 		} else {
+			// use 'mmap' to map a portion of a file
+			mmap(child, (void *)(va + i), MIN(PGSIZE, filesz - i), PTE_W, 0, fd, fileoffset + i);
+			continue;
+			// The following code won't be reached.
+
 			// from file
 			if ((r = sys_page_alloc(0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 				return r;

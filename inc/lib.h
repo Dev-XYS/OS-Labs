@@ -118,6 +118,9 @@ int	pipeisclosed(int pipefd);
 // wait.c
 void	wait(envid_t env);
 
+// mmap.c
+void    *mmap(envid_t envid, void *addr, size_t len, int prot, int flags, int fd, off_t offset);
+
 /* File open modes */
 #define	O_RDONLY	0x0000		/* open for reading only */
 #define	O_WRONLY	0x0001		/* open for writing only */
